@@ -5,6 +5,7 @@ import styles from "./styles/Home.module.css";
 import Header from "@/app/components/Header";
 import Info from "./components/Info";
 import NetworkSwitcher from "./components/Switcher";
+import { Button } from "@/components/ui/button";
 
 const Home: NextPage = () => {
   return (
@@ -18,7 +19,11 @@ const Home: NextPage = () => {
         <link href="/favicon.ico" rel="icon" />
       </Head> */}
       <Header />
+
       <main className={styles.main}>
+        <Button variant="outline" className="mt-4">
+          Outline Button
+        </Button>
         <Info />
         <NetworkSwitcher />
       </main>
