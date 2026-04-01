@@ -41,8 +41,11 @@ export default defineConfig({
       accounts: process.env.SEPOLIA_PRIVATE_KEY
         ? [process.env.SEPOLIA_PRIVATE_KEY]
         : [],
-      timeout: 120000, // 120秒超时
+      timeout: 120000,
       httpHeaders: {},
     },
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
   },
 });
