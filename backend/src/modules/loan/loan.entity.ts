@@ -20,6 +20,7 @@ export class Loan {
   @Column()
   txHash: string;
 
+  // Date.now() 例如1775180942589 是毫秒级别，所有需要用bigint存储
   @Column('bigint')
   timestamp: number;
 }
