@@ -6,42 +6,35 @@ export class Market {
   id: number;
 
   @Column()
-  user: string;
+  network: string;
 
   @Column()
-  network: string; // e.g. 'ethereum', 'polygon', etc.
+  collateralTokenAddress: string;
 
   @Column()
-  collateralTokenAddress: string; // 抵押物的token地址
+  collateralTokenName: string;
 
   @Column()
-  collateralTokenName: string; // 抵押物的token地址
+  loanTokenAddress: string;
 
   @Column()
-  loanTokenAddress: string; // 贷款的token地址
+  loanTokenName: string;
 
   @Column()
-  loanTokenName: string; // 贷款的token地址
+  totalCollateralAmount: string;
 
   @Column()
-  totalCollateralAmount: string; // 总抵押物的数量
+  totalLoanAmount: string;
 
   @Column()
-  totalLoanAmount: string; // 总贷款数量
-
-  @Column()
-  totalDebtAmount: string; // 总债务数量
+  totalDebtAmount: string;
 
   @Column('bigint')
-  ltvBps: number; // 贷款价值比，单位是基点（bps），例如7500表示75%
-
-  // @Column()
-  // amount: string;
+  ltvBps: number;
 
   @Column()
-  txHash: string; // 交易哈希
+  txHash: string;
 
-  // Date.now() 例如1775180942589 是毫秒级别，所有需要用bigint存储
   @Column('bigint')
   timestamp: number;
 }

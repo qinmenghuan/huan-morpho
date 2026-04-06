@@ -22,7 +22,6 @@ export class EventListener implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    // 借贷市场监听
     const contract = getLoanContract(this.blockchain.getProvider());
     contract.on('Deposited', async (user, amount, event) => {
       console.log(
@@ -37,43 +36,47 @@ export class EventListener implements OnModuleInit {
       });
     });
 
-    // 市场工厂合约监听
     const factoryContract = getMarketFactoryContract(
       this.blockchain.getProvider(),
     );
     factoryContract.on(
-      'createMarket',
-      async (market, collateralToken, loanToken, ltvBps) => {
-        console.log(
-          `Detected market creation: market=${market} collateralToken=${collateralToken} loanToken=${loanToken} ltvBps=${ltvBps.toString()} `,
-        );
+      'MarketCreated',
+      async (market, collateralToken, loanToken, ltvBps, event) => {
+        try {
+          console.log(
+            `Detected market creation: market=${market} collateralToken=${collateralToken} loanToken=${loanToken} ltvBps=${ltvBps.toString()}`,
+          );
 
-        // TODO: collateralTokenAddress 查询合约代币的名称
-        const collateralTokenName = getNewContract(
-          this.blockchain.getProvider(),
-          collateralToken,
-          ERC20ABI,
-        ).name() as Promise<string>;
-        // await this.blockchain.getTokenName(collateralToken);
-        // TODO: loanTokenAddress 查询合约代币的名称
-        const loanTokenName = getNewContract(
-          this.blockchain.getProvider(),
-          loanToken,
-          ERC20ABI,
-        ).name() as Promise<string>;
+          // 多个合约一起请求
+          const [collateralTokenName, loanTokenName] = await Promise.all([
+            getNewContract(
+              this.blockchain.getProvider(),
+              collateralToken,
+              ERC20ABI,
+            ).name() as Promise<string>,
+            getNewContract(
+              this.blockchain.getProvider(),
+              loanToken,
+              ERC20ABI,
+            ).name() as Promise<string>,
+          ]);
 
-        await this.marketRepo.save({
-          network: 'ethereum', // TODO: 需要根据实际情况设置
-          collateralTokenAddress: collateralToken,
-          collateralTokenName: collateralTokenName, // TODO: 需要根据实际情况设置
-          loanTokenAddress: loanToken,
-          loanTokenName: loanTokenName, // TODO: 需要根据实际情况设置
-          totalCollateralAmount: '0',
-          totalLoanAmount: '0',
-          totalDebtAmount: '0',
-          ltvBps: ltvBps.toNumber(),
-          timestamp: Date.now(),
-        });
+          await this.marketRepo.save({
+            network: 'ethereum',
+            collateralTokenAddress: collateralToken,
+            collateralTokenName,
+            loanTokenAddress: loanToken,
+            loanTokenName,
+            totalCollateralAmount: '0',
+            totalLoanAmount: '0',
+            totalDebtAmount: '0',
+            ltvBps: Number(ltvBps),
+            txHash: event.log.transactionHash,
+            timestamp: Date.now(),
+          });
+        } catch (error) {
+          console.error('Failed to handle MarketCreated event', error);
+        }
       },
     );
   }
