@@ -24,6 +24,7 @@ import { MarketModule } from './modules/market/market.module';
 import { BlockchainModule } from './modules/blockchain/blockchain.module';
 // 导入 Loan 实体，供 TypeORM 注册实体映射时使用。
 import { Loan } from './modules/loan/loan.entity';
+import { Market } from './modules/market/market.entity';
 
 // 使用 @Module 装饰器声明当前类是 NestJS 的根模块。
 @Module({
@@ -56,7 +57,7 @@ import { Loan } from './modules/loan/loan.entity';
         // 从环境变量中读取数据库名。
         database: configService.get<string>('POSTGRES_DB'),
         // 注册当前项目中需要映射到数据库表的实体类。
-        entities: [Loan],
+        entities: [Loan, Market],
         // 自动同步实体到数据库结构，适合开发环境，生产环境通常不建议开启。
         synchronize: true,
       }),
