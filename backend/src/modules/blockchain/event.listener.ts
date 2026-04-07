@@ -47,7 +47,7 @@ export class EventListener implements OnModuleInit {
             `Detected market creation: market=${market} collateralToken=${collateralToken} loanToken=${loanToken} ltvBps=${ltvBps.toString()}`,
           );
 
-          // 多个合约一起请求
+          // 多个合约一起请求,获取代币的名称
           const [collateralTokenName, loanTokenName] = await Promise.all([
             getNewContract(
               this.blockchain.getProvider(),
@@ -62,6 +62,7 @@ export class EventListener implements OnModuleInit {
           ]);
 
           await this.marketRepo.save({
+            marketAddress: market,
             network: 'ethereum',
             collateralTokenAddress: collateralToken,
             collateralTokenName,

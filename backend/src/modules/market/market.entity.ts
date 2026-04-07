@@ -5,6 +5,9 @@ export class Market {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ type: 'varchar', nullable: true })
+  marketAddress: string | null;
+
   @Column()
   network: string;
 
