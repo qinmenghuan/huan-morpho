@@ -1,20 +1,16 @@
-import {
-  Controller,
-  Get,
-  NotFoundException,
-  Param,
-  Query,
-  ParseIntPipe,
-} from '@nestjs/common';
+import { Controller, DefaultValuePipe, Get, ParseIntPipe, Query } from '@nestjs/common';
 import { LoanService } from './loan.service';
-import { Loan } from './loan.entity';
 
 @Controller('loans')
 export class LoanController {
   constructor(private service: LoanService) {}
 
   @Get()
-  getMarkets(@Query('id') market: string) {
-    return this.service.getLoans(market);
+  getLoans(
+    @Query('id') marketAddress: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
+  ) {
+    return this.service.getLoans(marketAddress, page, pageSize);
   }
 }
