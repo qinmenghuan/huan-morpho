@@ -7,6 +7,7 @@ export class BlockchainService {
 
   constructor() {
     this.provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+    (this.provider as any).pollingInterval = 15000;
   }
 
   getProvider() {

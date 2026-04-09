@@ -13,6 +13,13 @@ import ERC20ABI from './ERC20ABI.json';
 
 @Injectable()
 export class EventListener implements OnModuleInit {
+  // 监听的市场地址集合，避免重复监听同一市场
+  private readonly listenedMarkets = new Set<string>();
+  // 待执行的市场数据刷新定时器，key为市场地址，value为定时器ID
+  private readonly pendingMarketRefresh = new Map<string, NodeJS.Timeout>();
+  // 正在执行数据刷新的市场地址集合，避免重复刷新同一市场
+  private readonly runningMarketRefresh = new Set<string>();
+
   constructor(
     private blockchain: BlockchainService,
     @InjectRepository(Loan)
@@ -48,11 +55,8 @@ export class EventListener implements OnModuleInit {
               ERC20ABI,
             ).name() as Promise<string>,
           ]);
-          console.log(
-            `Fetched token names: collateralTokenName=${collateralTokenName} loanTokenName=${loanTokenName}`,
-          );
 
-          const obj = {
+          await this.marketRepo.save({
             marketAddress: market,
             network: 'ethereum',
             collateralTokenAddress: collateralToken,
@@ -65,13 +69,10 @@ export class EventListener implements OnModuleInit {
             ltvBps: Number(ltvBps),
             txHash: event.log.transactionHash,
             timestamp: Date.now(),
-          };
-          console.log('Saving new market to database:', obj);
-
-          await this.marketRepo.save(obj);
+          });
 
           this.addLoanContractListener(market);
-          // await this.updateMarketData(market);
+          this.scheduleMarketDataUpdate(market);
         } catch (error) {
           console.error('Failed to handle MarketCreated event', error);
         }
@@ -79,7 +80,14 @@ export class EventListener implements OnModuleInit {
     );
   }
 
+  // 添加借贷市场相关的事件监听
   addLoanContractListener(loanContractAddress = process.env.LOAN_CONTRACT!) {
+    // 防止重复监听
+    if (this.listenedMarkets.has(loanContractAddress)) {
+      return;
+    }
+    this.listenedMarkets.add(loanContractAddress);
+
     const contract = getLoanContract(
       this.blockchain.getProvider(),
       loanContractAddress,
@@ -97,8 +105,7 @@ export class EventListener implements OnModuleInit {
         txHash: event?.log?.transactionHash,
         timestamp: Date.now(),
       });
-      // 更新
-      await this.updateMarketData(loanContractAddress);
+      this.scheduleMarketDataUpdate(loanContractAddress);
     });
 
     contract.on('WithDrawn', async (user, amount, event) => {
@@ -113,7 +120,7 @@ export class EventListener implements OnModuleInit {
         txHash: event?.log?.transactionHash,
         timestamp: Date.now(),
       });
-      await this.updateMarketData(loanContractAddress);
+      this.scheduleMarketDataUpdate(loanContractAddress);
     });
 
     contract.on('CollateralSupplied', async (user, amount, event) => {
@@ -128,7 +135,7 @@ export class EventListener implements OnModuleInit {
         txHash: event?.log?.transactionHash,
         timestamp: Date.now(),
       });
-      await this.updateMarketData(loanContractAddress);
+      this.scheduleMarketDataUpdate(loanContractAddress);
     });
 
     contract.on('CollateralWithdrawn', async (user, amount, event) => {
@@ -143,7 +150,7 @@ export class EventListener implements OnModuleInit {
         txHash: event?.log?.transactionHash,
         timestamp: Date.now(),
       });
-      await this.updateMarketData(loanContractAddress);
+      this.scheduleMarketDataUpdate(loanContractAddress);
     });
 
     contract.on('Borrowed', async (user, amount, event) => {
@@ -156,7 +163,7 @@ export class EventListener implements OnModuleInit {
         txHash: event?.log?.transactionHash,
         timestamp: Date.now(),
       });
-      await this.updateMarketData(loanContractAddress);
+      this.scheduleMarketDataUpdate(loanContractAddress);
     });
 
     contract.on('Repaid', async (user, amount, event) => {
@@ -169,43 +176,66 @@ export class EventListener implements OnModuleInit {
         txHash: event?.log?.transactionHash,
         timestamp: Date.now(),
       });
-      await this.updateMarketData(loanContractAddress);
+      this.scheduleMarketDataUpdate(loanContractAddress);
     });
   }
 
-  // 更新市场合约相关数据
+  scheduleMarketDataUpdate(marketAddress: string, delayMs = 3000) {
+    // 判断是否存在相同的市场地址，如果存在则清除
+    const existingTimer = this.pendingMarketRefresh.get(marketAddress);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    // 定义计时器
+    const timer = setTimeout(async () => {
+      this.pendingMarketRefresh.delete(marketAddress);
+      await this.updateMarketData(marketAddress);
+    }, delayMs);
+
+    // 存储待更新的键值对
+    this.pendingMarketRefresh.set(marketAddress, timer);
+  }
+
+  // 更新市场数据
   async updateMarketData(marketAddress: string) {
-    const contract = getLoanContract(
-      this.blockchain.getProvider(),
-      marketAddress,
-    );
-    // 根据地址查市场对象
-    const market = await this.marketRepo.findOneBy({ marketAddress });
-
-    console.log(`Updating market data for ${market?.id || marketAddress}...`);
-
-    if (!market) {
+    // 检查执行中是否有相同的市场，如果有则不要重复更新
+    if (this.runningMarketRefresh.has(marketAddress)) {
       return;
     }
 
-    const stats = (await contract.stats()) as {
-      totalDeposits: bigint;
-      totalCollateral: bigint;
-      totalDebt: bigint;
-    };
+    this.runningMarketRefresh.add(marketAddress);
 
-    console.log(
-      `Updating market data for ${marketAddress}: totalDeposits=${stats.totalDeposits.toString()} totalCollateral=${stats.totalCollateral.toString()} totalDebt=${stats.totalDebt.toString()}`,
-    );
+    try {
+      const contract = getLoanContract(
+        this.blockchain.getProvider(),
+        marketAddress,
+      );
+      const market = await this.marketRepo.findOneBy({ marketAddress });
 
-    await this.marketRepo.update(
-      { id: market.id },
-      {
-        totalLoanAmount: stats.totalDeposits.toString(),
-        totalCollateralAmount: stats.totalCollateral.toString(),
-        totalDebtAmount: stats.totalDebt.toString(),
-        timestamp: Date.now(),
-      },
-    );
+      if (!market) {
+        return;
+      }
+
+      const stats = (await contract.stats()) as {
+        totalDeposits: bigint;
+        totalCollateral: bigint;
+        totalDebt: bigint;
+      };
+
+      await this.marketRepo.update(
+        { id: market.id },
+        {
+          totalLoanAmount: stats.totalDeposits.toString(),
+          totalCollateralAmount: stats.totalCollateral.toString(),
+          totalDebtAmount: stats.totalDebt.toString(),
+          timestamp: Date.now(),
+        },
+      );
+    } catch (error) {
+      console.error(`Failed to update market data for ${marketAddress}`, error);
+    } finally {
+      this.runningMarketRefresh.delete(marketAddress);
+    }
   }
 }
