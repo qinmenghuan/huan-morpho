@@ -25,6 +25,8 @@ import { BlockchainModule } from './modules/blockchain/blockchain.module';
 // 导入 Loan 实体，供 TypeORM 注册实体映射时使用。
 import { Loan } from './modules/loan/loan.entity';
 import { Market } from './modules/market/market.entity';
+// 登录授权模块
+import { AuthModule } from './modules/auth/auth.module';
 
 // 使用 @Module 装饰器声明当前类是 NestJS 的根模块。
 @Module({
@@ -70,6 +72,8 @@ import { Market } from './modules/market/market.entity';
     LoanModule,
     // 注册区块链业务模块。
     BlockchainModule,
+    // 授权登录模块
+    AuthModule,
   ],
   // controllers 用于声明当前模块中可处理请求的控制器。
   controllers: [AppController],
