@@ -65,6 +65,12 @@ export class AuthService {
 
     await this.authNonceRepo.save(authNonce);
 
+    console.log(
+      `Generated login nonce for address ${normalizedAddress}: ${nonce} (expires at ${new Date(
+        expiredAt,
+      ).toISOString()})`,
+    );
+
     return {
       walletAddress: normalizedAddress,
       nonce,

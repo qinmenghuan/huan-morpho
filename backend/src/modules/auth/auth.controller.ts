@@ -10,7 +10,8 @@ export class AuthController {
 
   @Post('wallet/request')
   requestWalletLogin(@Body() dto: RequestWalletLoginDto) {
-    this.authService.requestWalletLogin(dto.walletAddress);
+    console.log('Requesting wallet login for address:', dto.walletAddress);
+    return this.authService.requestWalletLogin(dto.walletAddress);
   }
 
   @Post('wallet/verify')
