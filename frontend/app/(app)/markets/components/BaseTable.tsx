@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 import {
   Table,
@@ -14,8 +15,9 @@ import { getMarkets } from "@/lib/market";
 
 const BaseTable = () => {
   const [testData, setTestData] = useState([]);
+  const router = useRouter();
 
-  React.useEffect(() => {
+  useEffect(() => {
     // 查询市场
     const fetchMarkets = async () => {
       const markets = await getMarkets();
@@ -25,6 +27,11 @@ const BaseTable = () => {
 
     fetchMarkets();
   }, []);
+
+  const onRowClick = (item) => {
+    console.log("Clicked market:", item);
+    router.push(`/markets/${item.id}`);
+  };
 
   return (
     <Table className="mt-4">
@@ -42,7 +49,7 @@ const BaseTable = () => {
       </TableHeader>
       <TableBody>
         {testData.map((item) => (
-          <TableRow key={item.id}>
+          <TableRow key={item.id} onClick={() => onRowClick(item)}>
             <TableCell className="font-medium">{item.network}</TableCell>
             <TableCell>{item.collateralTokenName}</TableCell>
             <TableCell>{item.loanTokenName}</TableCell>
